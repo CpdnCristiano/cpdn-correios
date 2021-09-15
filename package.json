@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node build/app.js",
-    "build": "rm -rf build && tsc --build tsconfig.json"
+    "build": "rm -rf build && tsc --build tsconfig.json",
+    "postinstall": "npm run build"
   },
   "author": "",
   "license": "ISC",
