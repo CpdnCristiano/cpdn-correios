@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { parse } from 'date-fns';
 import { env } from 'process';
+import express from "express";
 
 declare module CorreiosAPI {
     export interface Recebedor {
@@ -84,14 +85,14 @@ module Rastreamento {
         status: string;
         locale: string;
         observation: string;
-        isDelivered: boolean;
+        isFinished: boolean;
         trackedAt: Date;
     }
     class RastrearResponse implements TrackingResult {
         status!: string;
         locale!: string;
         observation!: string;
-        isDelivered: boolean = false;
+        isFinished: boolean = false;
         trackedAt!: Date;
     }
     interface RastreioBREvent {
@@ -129,7 +130,7 @@ module Rastreamento {
                     response.locale = getLocale(track.unidade);
                     response.observation = getObservation(track);
                     response.trackedAt = parse(track.data + ' ' + track.hora, 'dd/MM/yyyy HH:mm', new Date());
-                    response.isDelivered = isFinished(track);
+                    response.isFinished = isFinished(track);
                     return response;
                 }
             }
@@ -173,7 +174,7 @@ function isFinished(event: CorreiosAPI.Evento): boolean {
     const eventStatus = ["01", "12", "23", "50", "51", "52", "43", "67", "68", "70", "71", "72", "73", "74", "75", "76", "80"];//e FC 11
     return (eventType.includes(event.tipo) && eventStatus.includes(event.status)) || (event.tipo == "FC" && event.status == "11");
 }
-export function upperCaseFirstLetterWord(str: string) {
+function upperCaseFirstLetterWord(str: string) {
     if (str === "") {
         return str;
     }
@@ -184,7 +185,23 @@ export function upperCaseFirstLetterWord(str: string) {
     }
     return array.join(" ");
 }
-export function upperCaseFirstLetter(str: string) {
+function upperCaseFirstLetter(str: string) {
     str = str.toLowerCase();
     return str.length > 1 ? str[0].toUpperCase() + str.substring(1) : str.toUpperCase();
 }
+
+const app = express();
+
+app.get('/:code', (req, res) => {
+    const code = req.params.code.trim();
+    Rastreamento.find(code)
+        .then((result) => {
+            res.json(result);
+        }).catch((error) => {
+            res.status(404).json({});
+        }).finally(() => {
+            res.end();
+        });
+});
+
+app.listen(env.PORT || 3000, () => console.log(`Example app listening on port ${env.PORT || 3000}!`));

@@ -3,15 +3,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.upperCaseFirstLetter = exports.upperCaseFirstLetterWord = void 0;
 const axios_1 = __importDefault(require("axios"));
 const date_fns_1 = require("date-fns");
 const process_1 = require("process");
+const express_1 = __importDefault(require("express"));
 var Rastreamento;
 (function (Rastreamento) {
     class RastrearResponse {
         constructor() {
-            this.isDelivered = false;
+            this.isFinished = false;
         }
     }
     async function correiosApi(code) {
@@ -39,8 +39,8 @@ var Rastreamento;
                     response.status = track.descricao;
                     response.locale = getLocale(track.unidade);
                     response.observation = getObservation(track);
-                    response.trackedAt = date_fns_1.parse(track.data + ' ' + track.hora, 'dd/MM/yyyy HH:mm', new Date());
-                    response.isDelivered = isFinished(track);
+                    response.trackedAt = (0, date_fns_1.parse)(track.data + ' ' + track.hora, 'dd/MM/yyyy HH:mm', new Date());
+                    response.isFinished = isFinished(track);
                     return response;
                 }
             }
@@ -91,9 +91,20 @@ function upperCaseFirstLetterWord(str) {
     }
     return array.join(" ");
 }
-exports.upperCaseFirstLetterWord = upperCaseFirstLetterWord;
 function upperCaseFirstLetter(str) {
     str = str.toLowerCase();
     return str.length > 1 ? str[0].toUpperCase() + str.substring(1) : str.toUpperCase();
 }
-exports.upperCaseFirstLetter = upperCaseFirstLetter;
+const app = (0, express_1.default)();
+app.get('/:code', (req, res) => {
+    const code = req.params.code.trim();
+    Rastreamento.find(code)
+        .then((result) => {
+        res.json(result);
+    }).catch((error) => {
+        res.status(404).json({});
+    }).finally(() => {
+        res.end();
+    });
+});
+app.listen(process_1.env.PORT || 3000, () => console.log(`Example app listening on port ${process_1.env.PORT || 3000}!`));
