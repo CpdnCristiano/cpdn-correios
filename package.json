@@ -1,6 +1,6 @@
 {
   "name": "cpdn_correios",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Rastreio de encomendas correios br",
   "main": "index.js",
   "scripts": {
@@ -9,8 +9,8 @@
     "build": "rm -rf build && tsc --build tsconfig.json",
     "postinstall": "npm run build"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "cpdncristiano",
+  "license": "MIT",
   "dependencies": {
     "axios": "^0.21.4",
     "date-fns": "^2.23.0",
