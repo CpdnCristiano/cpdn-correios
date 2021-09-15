@@ -104,7 +104,7 @@ module Rastreamento {
         local?: string;
     }
     type RatreioBREvents = Array<RastreioBREvent>;
-    async function correiosApi(code: string): Promise<undefined | RastrearResponse> {
+    export async function correiosApi(code: string): Promise<undefined | CorreiosAPI.CorreiosAPITrackingResponse> {
         const headers = {
             'Content-Type': 'application/xml',
             'Accept': 'application/json',
@@ -121,26 +121,43 @@ module Rastreamento {
         </rastroObjeto>`
         try {
             var result = await axios.post(`http://webservice.correios.com.br/service/rest/rastro/rastroMobile`, body, { headers });
-            const data = result.data as CorreiosAPI.CorreiosAPITrackingResponse;
-            if (data.objeto && data.objeto.length > 0 && data.objeto[0].evento) {
-                const track = data.objeto[0].evento[0];
-                if (track) {
-                    const response = new RastrearResponse();
-                    response.status = track.descricao;
-                    response.locale = getLocale(track.unidade);
-                    response.observation = getObservation(track);
-                    response.trackedAt = parse(track.data + ' ' + track.hora, 'dd/MM/yyyy HH:mm', new Date());
-                    response.isFinished = isFinished(track);
-                    return response;
-                }
-            }
+            return result.data as CorreiosAPI.CorreiosAPITrackingResponse;
         } catch (error) {
         }
         return undefined;
     }
+    function formatEvent(event: CorreiosAPI.Evento): RastrearResponse {
+        const response = new RastrearResponse();
+        response.status = event.descricao;
+        response.locale = getLocale(event.unidade);
+        response.observation = getObservation(event);
+        response.trackedAt = parse(event.data + ' ' + event.hora, 'dd/MM/yyyy HH:mm', new Date());
+        response.isFinished = isFinished(event);
+        return response;
+    }
 
     export async function find(code: string): Promise<undefined | RastrearResponse> {
-        return correiosApi(code);
+        const data = await correiosApi(code);
+        if (data) {
+            if (data.objeto && data.objeto.length > 0 && data.objeto[0].evento) {
+                const track = data.objeto[0].evento[0];
+                if (track) {
+                    return formatEvent(track);
+                }
+            }
+        }
+    }
+    export async function findHistory(code: string): Promise<RastrearResponse[]> {
+        const data = await correiosApi(code);
+        const result: RastrearResponse[] = [];
+        if (data) {
+            if (data.objeto && data.objeto.length > 0 && data.objeto[0].evento) {
+                data.objeto[0].evento.forEach(event => {
+                    result.push(formatEvent(event));
+                });
+            }
+        }
+        return result.reverse();
     }
 }
 
@@ -153,7 +170,7 @@ function getLocale(unidade: CorreiosAPI.Unidade): string {
     }
 
     if (unidade?.cidade && unidade?.uf) {
-        return `${upperCaseFirstLetterWord(unidade.cidade.trim())} - ${unidade.uf}`;
+        return `${upperCaseFirstLetterWord(unidade.cidade.trim())}-${unidade.uf}`;
     }
     return upperCaseFirstLetterWord(unidade?.local || "");
 }
@@ -198,10 +215,43 @@ app.get('/:code', (req, res) => {
         .then((result) => {
             res.json(result);
         }).catch((error) => {
+            res.status(404).json({ status: "error" });
+        }).finally(() => {
+            res.end();
+        });
+});
+app.get('/api/v1/:code', (req, res) => {
+    const code = req.params.code.trim();
+    Rastreamento.find(code)
+        .then((result) => {
+            res.json(result);
+        }).catch((error) => {
+            res.status(404).json({ status: "error" });
+        }).finally(() => {
+            res.end();
+        });
+});
+app.get('/api/v1/:code/complete', (req, res) => {
+    const code = req.params.code.trim();
+    Rastreamento.findHistory(code)
+        .then((result) => {
+            res.json(result);
+        }).catch((error) => {
+            res.status(404).json({ status: "error" });
+        }).finally(() => {
+            res.end();
+        });
+});
+app.get('/api/correios/:code', (req, res) => {
+    const code = req.params.code.trim();
+    Rastreamento.correiosApi(code)
+        .then((result) => {
+            res.json(result);
+        }).catch((error) => {
             res.status(404).json({});
         }).finally(() => {
             res.end();
         });
 });
 
-app.listen(env.PORT || 3000, () => console.log(`Example app listening on port ${env.PORT || 3000}!`));
+app.listen(env.PORT || 3000, () => console.log(`Correios app listening on port ${env.PORT || 3000}!`));
