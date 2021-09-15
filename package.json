@@ -1,0 +1,20 @@
+{
+  "name": "cpdn_correios",
+  "version": "1.0.0",
+  "description": "Rastreio de encomendas correios br",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node build/app.js",
+    "build": "rm -rf build && tsc --build tsconfig.json"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.4",
+    "date-fns": "^2.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^16.9.1"
+  }
+}
