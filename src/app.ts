@@ -117,16 +117,7 @@ module Rastreamento {
         response.pickupAddress = pickupAddressFormatted(event);
         return response;
     }
-    function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
 
-        if (event?.tipo?.toUpperCase() == "LDI") {
-            const endereco = event.unidade.endereco;
-            if (endereco) {
-                return `${endereco.logradouro.trim()}, ${endereco.numero.trim()}, ${endereco.bairro.trim()}, ${endereco.localidade.trim()}-${endereco.uf.trim()}`;
-            }
-        }
-        return undefined;
-    }
 
     export async function find(code: string,): Promise<undefined | RastrearResponse> {
         const data = await correiosApi(code, "U");
@@ -156,6 +147,16 @@ module Rastreamento {
 
 export default Rastreamento;
 
+function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
+
+    if (event?.tipo?.toUpperCase() == "LDI") {
+        const endereco = event.unidade.endereco;
+        if (endereco) {
+            return `${upperCaseFirstLetterWord(endereco.logradouro.trim() || "")}, ${endereco.numero.trim()}, ${upperCaseFirstLetterWord(endereco.bairro.trim() || "")}, ${upperCaseFirstLetter(endereco.localidade.trim() || "")}-${endereco.uf.trim()}`;
+        }
+    }
+    return undefined;
+}
 function getLocale(unidade: CorreiosAPI.Unidade): string {
     if (unidade?.uf?.toLocaleUpperCase() == "BR") {
         return "Brasil"
@@ -176,7 +177,7 @@ function getObservation(event: CorreiosAPI.Evento): string {
     if (event?.unidade?.tipounidade == undefined) {
         return `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
     }
-    return `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
+    return `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local?.replace(new RegExp(getLocale(event.destino[0]), 'gi'), getLocale(event.destino[0]))} - ${getLocale(event.destino[0])}`;
 }
 
 function isFinished(event: CorreiosAPI.Evento): boolean {
