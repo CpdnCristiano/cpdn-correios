@@ -5,43 +5,30 @@ import express from "express";
 
 declare module CorreiosAPI {
     export interface Recebedor {
+        nome: string;
+        documento: string;
+        comentario: string;
     }
+
     export interface Endereco {
-        codigo?: string;
-        cep?: string;
-        logradouro?: string;
-        numero?: string;
-        localidade?: string;
-        uf?: string;
-        bairro?: string;
-        latitude?: string;
-        longitude?: string;
-        complemento?: string;
+        codigo: string;
+        cep: string;
+        logradouro: string;
+        numero: string;
+        localidade: string;
+        uf: string;
+        bairro: string;
+        latitude: string;
+        longitude: string;
     }
 
     export interface Unidade {
         local: string;
-        codigo?: string;
-        cidade?: string;
-        uf?: string;
-        sto?: string;
-        tipounidade?: string;
-        endereco: Endereco;
-    }
-
-    export interface DetalheOEC {
-        carteiro: string;
-        distrito: string;
-        lista: string;
-        unidade: string;
-    }
-
-    export interface Destino {
-        local: string;
         codigo: string;
         cidade: string;
-        bairro: string;
         uf: string;
+        sto: string;
+        tipounidade: string;
         endereco: Endereco;
     }
 
@@ -56,9 +43,8 @@ declare module CorreiosAPI {
         unidade: Unidade;
         cepDestino: string;
         prazoGuarda: string;
-        diasUteis: string;
         dataPostagem: string;
-        detalheOEC: DetalheOEC;
+        detalhe: string;
         destino: Unidade[];
     }
 
@@ -69,7 +55,6 @@ declare module CorreiosAPI {
         categoria: string;
         evento: Evento[];
     }
-
     interface CorreiosAPITrackingResponse {
         versao: string;
         quantidade: string;
@@ -94,16 +79,8 @@ module Rastreamento {
         observation!: string;
         isFinished: boolean = false;
         trackedAt!: Date;
+        pickupAddress?: string;
     }
-    interface RastreioBREvent {
-        status: string;
-        data: string;
-        hora: string;
-        origem?: string;
-        destino?: string;
-        local?: string;
-    }
-    type RatreioBREvents = Array<RastreioBREvent>;
     export async function correiosApi(code: string, type = "T"): Promise<undefined | CorreiosAPI.CorreiosAPITrackingResponse> {
         if (code == null || code == "" || code.length != 13) {
             return undefined;
@@ -129,6 +106,7 @@ module Rastreamento {
         }
         return undefined;
     }
+
     function formatEvent(event: CorreiosAPI.Evento): RastrearResponse {
         const response = new RastrearResponse();
         response.status = event.descricao;
@@ -136,7 +114,18 @@ module Rastreamento {
         response.observation = getObservation(event);
         response.trackedAt = parse(event.data + ' ' + event.hora, 'dd/MM/yyyy HH:mm', new Date());
         response.isFinished = isFinished(event);
+        response.pickupAddress = pickupAddressFormatted(event);
         return response;
+    }
+    function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
+
+        if (event?.tipo?.toUpperCase() == "LDI") {
+            const endereco = event.unidade.endereco;
+            if (endereco) {
+                return `${endereco.logradouro}, ${endereco.numero}, ${endereco.bairro}, ${endereco.localidade}-${endereco.uf}`;
+            }
+        }
+        return undefined;
     }
 
     export async function find(code: string,): Promise<undefined | RastrearResponse> {
@@ -178,6 +167,9 @@ function getLocale(unidade: CorreiosAPI.Unidade): string {
     return upperCaseFirstLetterWord(unidade?.local || "");
 }
 function getObservation(event: CorreiosAPI.Evento): string {
+    if (event.detalhe) {
+        return event.detalhe;
+    }
     if (event?.destino == undefined) {
         return event.descricao;
     }
