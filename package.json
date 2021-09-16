@@ -1,6 +1,6 @@
 {
   "name": "cpdn_correios",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Rastreio de encomendas correios br",
   "main": "index.js",
   "scripts": {

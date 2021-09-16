@@ -162,10 +162,10 @@ function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
 
 function pickupAddresscoordinates(event: CorreiosAPI.Evento): Object | undefined {
 
-    if (event?.tipo?.toUpperCase() == "LDI") {
+    if (event?.tipo?.toUpperCase() == "LDI" && event.unidade?.endereco?.latitude && event?.unidade?.endereco?.longitude) {
         return {
-            latitude: event.unidade?.endereco?.latitude,
-            longitude: event.unidade?.endereco?.longitude,
+            latitude: event.unidade.endereco.latitude,
+            longitude: event.unidade.endereco.longitude,
         }
     }
     return undefined;
