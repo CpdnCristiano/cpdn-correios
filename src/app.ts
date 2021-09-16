@@ -122,7 +122,7 @@ module Rastreamento {
         if (event?.tipo?.toUpperCase() == "LDI") {
             const endereco = event.unidade.endereco;
             if (endereco) {
-                return `${endereco.logradouro}, ${endereco.numero}, ${endereco.bairro}, ${endereco.localidade}-${endereco.uf}`;
+                return `${endereco.logradouro.trim()}, ${endereco.numero.trim()}, ${endereco.bairro.trim()}, ${endereco.localidade.trim()}-${endereco.uf.trim()}`;
             }
         }
         return undefined;
