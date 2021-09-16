@@ -178,7 +178,17 @@ function getObservation(event: CorreiosAPI.Evento): string {
         return `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
     }
     //TODO: melhorar algoritmo
-    return `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local?.replace(new RegExp(event.destino[0]?.cidade.trim() || "%", 'gi'), upperCaseFirstLetterWord(event.destino[0].cidade || "%")?.trim())} - ${getLocale(event.destino[0])}`;
+    return `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
+}
+function fixCaseLoca(unidade: CorreiosAPI.Unidade): void {
+    let locale = unidade.local;
+    if (locale) {
+        if (unidade.cidade) {
+            unidade.local = locale.replace(new RegExp(unidade.cidade.trim() || "%", 'gi'), upperCaseFirstLetterWord(unidade.cidade || "%")?.trim());
+        }
+    }
+
+
 }
 
 function isFinished(event: CorreiosAPI.Evento): boolean {
