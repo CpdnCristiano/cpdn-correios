@@ -177,7 +177,8 @@ function getObservation(event: CorreiosAPI.Evento): string {
     if (event?.unidade?.tipounidade == undefined) {
         return `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
     }
-    return `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local?.replace(new RegExp(getLocale(event.destino[0]), 'gi'), getLocale(event.destino[0]))} - ${getLocale(event.destino[0])}`;
+    //TODO: melhorar algoritmo
+    return `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local?.replace(new RegExp(event.destino[0]?.cidade || "%", 'gi'), upperCaseFirstLetterWord(event.destino[0].cidade || "%"))} - ${getLocale(event.destino[0])}`;
 }
 
 function isFinished(event: CorreiosAPI.Evento): boolean {
