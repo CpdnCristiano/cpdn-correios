@@ -75,7 +75,13 @@ module Rastreamento {
         isFinished: boolean = false;
         trackedAt!: Date;
         pickupAddress?: string;
+        pickupAddresscoordinates?: LanLng;
         receiver?: string;
+
+    }
+    interface LanLng {
+        latitude?: number | string;
+        longitude?: number | string;
     }
     export async function correiosApi(code: string, type = "T"): Promise<undefined | CorreiosAPI.CorreiosAPITrackingResponse> {
         if (code == null || code == "" || code.length != 13) {
@@ -112,6 +118,7 @@ module Rastreamento {
         response.trackedAt = parse(event.data + ' ' + event.hora, 'dd/MM/yyyy HH:mm', new Date());
         response.isFinished = isFinished(event);
         response.pickupAddress = pickupAddressFormatted(event);
+        response.pickupAddresscoordinates = pickupAddresscoordinates(event);
         response.receiver = event?.recebedor?.nome;
         return response;
     }
@@ -149,6 +156,17 @@ function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
 
     if (event?.tipo?.toUpperCase() == "LDI") {
         return formatAddress(event.unidade.endereco);
+    }
+    return undefined;
+}
+
+function pickupAddresscoordinates(event: CorreiosAPI.Evento): Object | undefined {
+
+    if (event?.tipo?.toUpperCase() == "LDI") {
+        return {
+            latitude: event.unidade?.endereco?.latitude,
+            longitude: event.unidade?.endereco?.longitude,
+        }
     }
     return undefined;
 }
