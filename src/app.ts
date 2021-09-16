@@ -104,7 +104,10 @@ module Rastreamento {
         local?: string;
     }
     type RatreioBREvents = Array<RastreioBREvent>;
-    export async function correiosApi(code: string): Promise<undefined | CorreiosAPI.CorreiosAPITrackingResponse> {
+    export async function correiosApi(code: string, type = "T"): Promise<undefined | CorreiosAPI.CorreiosAPITrackingResponse> {
+        if (code == null || code == "" || code.length != 13) {
+            return undefined;
+        }
         const headers = {
             'Content-Type': 'application/xml',
             'Accept': 'application/json',
@@ -115,7 +118,7 @@ module Rastreamento {
         <usuario>${env.CORREIOS_USER!}</usuario>
         <senha>${env.CORREIOS_PASS!}</senha>
         <tipo>L</tipo>
-        <resultado>T</resultado>
+        <resultado>${type}</resultado>
         <objetos>${code}</objetos>
         <lingua>101</lingua>
         </rastroObjeto>`
@@ -136,8 +139,8 @@ module Rastreamento {
         return response;
     }
 
-    export async function find(code: string): Promise<undefined | RastrearResponse> {
-        const data = await correiosApi(code);
+    export async function find(code: string,): Promise<undefined | RastrearResponse> {
+        const data = await correiosApi(code, "U");
         if (data) {
             if (data.objeto && data.objeto.length > 0 && data.objeto[0].evento) {
                 const track = data.objeto[0].evento[0];
@@ -148,7 +151,7 @@ module Rastreamento {
         }
     }
     export async function findHistory(code: string): Promise<RastrearResponse[]> {
-        const data = await correiosApi(code);
+        const data = await correiosApi(code, "T");
         const result: RastrearResponse[] = [];
         if (data) {
             if (data.objeto && data.objeto.length > 0 && data.objeto[0].evento) {
@@ -178,7 +181,7 @@ function getObservation(event: CorreiosAPI.Evento): string {
     if (event?.destino == undefined) {
         return event.descricao;
     }
-    if (event?.unidade?.tipounidade) {
+    if (event?.unidade?.tipounidade == undefined) {
         return `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
     }
     return `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
@@ -187,8 +190,12 @@ function getObservation(event: CorreiosAPI.Evento): string {
 function isFinished(event: CorreiosAPI.Evento): boolean {
     event.tipo = event.tipo?.toUpperCase()?.trim();
     event.status = event.status?.toUpperCase()?.trim();
+    /* Todos os objetos que forem retornados com o evento tipo 
+    BDE, BDI e BDR com status 01, 12, 23, 50, 51, 52, 43, 67, 68, 70, 71, 72, 73, 74, 75, 76 e 80 e FC 11 
+    estão com o histórico concluído.Não será mais necessário enviá - los para novas consultas.
+    */
     const eventType = ["BDE", "BDI", "BDR"];
-    const eventStatus = ["01", "12", "23", "50", "51", "52", "43", "67", "68", "70", "71", "72", "73", "74", "75", "76", "80"];//e FC 11
+    const eventStatus = ["01", "12", "23", "50", "51", "52", "43", "67", "68", "70", "71", "72", "73", "74", "75", "76", "80"];
     return (eventType.includes(event.tipo) && eventStatus.includes(event.status)) || (event.tipo == "FC" && event.status == "11");
 }
 function upperCaseFirstLetterWord(str: string) {
