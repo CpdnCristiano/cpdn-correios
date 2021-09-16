@@ -67,21 +67,15 @@ declare module CorreiosAPI {
 }
 module Rastreamento {
 
-    export interface TrackingResult {
-        status: string;
-        locale: string;
-        observation: string;
-        isFinished: boolean;
-        trackedAt: Date;
-    }
-    class RastrearResponse implements TrackingResult {
+
+    class RastrearResponse {
         status!: string;
         locale!: string;
         observation!: string;
         isFinished: boolean = false;
         trackedAt!: Date;
         pickupAddress?: string;
-        recebedor?: string;
+        receiver?: string;
     }
     export async function correiosApi(code: string, type = "T"): Promise<undefined | CorreiosAPI.CorreiosAPITrackingResponse> {
         if (code == null || code == "" || code.length != 13) {
@@ -118,7 +112,7 @@ module Rastreamento {
         response.trackedAt = parse(event.data + ' ' + event.hora, 'dd/MM/yyyy HH:mm', new Date());
         response.isFinished = isFinished(event);
         response.pickupAddress = pickupAddressFormatted(event);
-        response.recebedor = event?.recebedor?.nome;
+        response.receiver = event?.recebedor?.nome;
         return response;
     }
 
