@@ -26,6 +26,7 @@ declare module CorreiosAPI {
         local: string;
         codigo: string;
         cidade: string;
+        bairro: String;
         uf: string;
         sto: string;
         tipounidade: string;
@@ -37,14 +38,14 @@ declare module CorreiosAPI {
         status: string;
         data: string;
         hora: string;
-        criacao: string;
+        criacao?: string;
         descricao: string;
-        recebedor: Recebedor;
+        recebedor?: Recebedor;
         unidade: Unidade;
-        cepDestino: string;
-        prazoGuarda: string;
-        dataPostagem: string;
-        detalhe: string;
+        cepDestino?: string;
+        prazoGuarda?: string;
+        dataPostagem?: string;
+        detalhe?: string;
         destino: Unidade[];
     }
 
@@ -80,6 +81,7 @@ module Rastreamento {
         isFinished: boolean = false;
         trackedAt!: Date;
         pickupAddress?: string;
+        recebedor?: string;
     }
     export async function correiosApi(code: string, type = "T"): Promise<undefined | CorreiosAPI.CorreiosAPITrackingResponse> {
         if (code == null || code == "" || code.length != 13) {
@@ -109,12 +111,14 @@ module Rastreamento {
 
     function formatEvent(event: CorreiosAPI.Evento): RastrearResponse {
         const response = new RastrearResponse();
+        fixCaseLocal(event.destino?.[0]);
         response.status = event.descricao;
         response.locale = getLocale(event.unidade);
         response.observation = getObservation(event);
         response.trackedAt = parse(event.data + ' ' + event.hora, 'dd/MM/yyyy HH:mm', new Date());
         response.isFinished = isFinished(event);
         response.pickupAddress = pickupAddressFormatted(event);
+        response.recebedor = event?.recebedor?.nome;
         return response;
     }
 
@@ -150,12 +154,29 @@ export default Rastreamento;
 function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
 
     if (event?.tipo?.toUpperCase() == "LDI") {
-        const endereco = event.unidade.endereco;
-        if (endereco) {
-            return `${upperCaseFirstLetterWord(endereco.logradouro.trim() || "")}, ${endereco.numero.trim()}, ${upperCaseFirstLetterWord(endereco.bairro.trim() || "")}, ${upperCaseFirstLetter(endereco.localidade.trim() || "")}-${endereco.uf.trim()}`;
-        }
+        return formatAddress(event.unidade.endereco);
     }
     return undefined;
+}
+function formatAddress(endereco: CorreiosAPI.Endereco): string | undefined {
+    if (endereco) {
+        let str = "";
+        if (endereco.logradouro)
+            str += `${upperCaseFirstLetterWord(endereco.logradouro?.trim())}`;
+
+        if (endereco.numero)
+            str += ` ${endereco.numero.trim()},`;
+        if (endereco.bairro)
+            str += ` ${upperCaseFirstLetterWord(endereco.bairro.trim())},`;
+        if (endereco.localidade)
+            str += ` ${upperCaseFirstLetterWord(endereco.localidade.trim())}-`;
+        if (endereco.uf)
+            str += `${endereco.uf.trim()}`;
+        if (str !== "")
+            return str.trim();
+
+    }
+
 }
 function getLocale(unidade: CorreiosAPI.Unidade): string {
     if (unidade?.uf?.toLocaleUpperCase() == "BR") {
@@ -177,17 +198,25 @@ function getObservation(event: CorreiosAPI.Evento): string {
     if (event?.unidade?.tipounidade == undefined) {
         return `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
     }
+    if (event?.unidade?.tipounidade.toLowerCase() == "país" || event?.unidade?.tipounidade.toLowerCase() == "pais") {
+        if (event?.destino[0].local) {
+            return `${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
+        }
+        return `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
+
+    }
     //TODO: melhorar algoritmo
     return `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
 }
-function fixCaseLoca(unidade: CorreiosAPI.Unidade): void {
-    let locale = unidade.local;
+function fixCaseLocal(unidade: CorreiosAPI.Unidade): void {
+    let locale = unidade?.local;
     if (locale) {
-        if (unidade.cidade) {
-            unidade.local = locale.replace(new RegExp(unidade.cidade.trim() || "%", 'gi'), upperCaseFirstLetterWord(unidade.cidade || "%")?.trim());
-        }
-    }
+        const words = locale.split(' ');
+        const silga = words[0];
+        unidade.local = upperCaseFirstLetterWord(locale);
+        unidade.local = unidade.local.replace(new RegExp(silga, 'gi'), silga);
 
+    }
 
 }
 
@@ -248,6 +277,8 @@ app.get('/api/v1/:code/complete', (req, res) => {
         .then((result) => {
             res.json(result);
         }).catch((error) => {
+            console.log(error);
+
             res.status(404).json({ status: "error" });
         }).finally(() => {
             res.end();
