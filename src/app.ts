@@ -216,13 +216,17 @@ module Rastreamento {
         if (caniaoCode.test(code)) {
             const cainiao = await caniaoApi(code);
             if (cainiao) {
-                if (cainiao.section2.mailNo === undefined && correiosCode.test(cainiao.section2.mailNo)) {
+                const formatedEventCainiao = formatCaniaoEvent(cainiao);
+                if (cainiao.section2.mailNo !== undefined && correiosCode.test(cainiao.section2.mailNo)) {
                     const correios = await correiosApi(cainiao.section2.mailNo, "U");
                     if (correios) {
-                        return formatEvent(correios.objeto[0].evento[0]);
+                        const formatedEventCorreios = formatEvent(correios.objeto[0].evento[0]);
+                        if (formatedEventCorreios.isFinished || (await formatedEventCainiao).trackedAt.getTime() <= formatedEventCorreios.trackedAt.getTime()) {
+                            return formatedEventCorreios;
+                        }
                     }
                 }
-                return formatCaniaoEvent(cainiao);
+                return formatedEventCainiao;
             }
         } else {
             const correios = await correiosApi(code, "U");
@@ -230,7 +234,21 @@ module Rastreamento {
                 if (correios.objeto && correios.objeto.length > 0 && correios.objeto[0].evento) {
                     const track = correios.objeto[0].evento[0];
                     if (track) {
-                        return formatEvent(track);
+                        const formatedEventCorreios = formatEvent(track);
+                        if (formatedEventCorreios.isFinished) {
+                            return formatedEventCorreios;
+                        } else {
+                            const cainiao = await caniaoApi(code);
+                            if (cainiao) {
+
+                                const formatedEventCainiao = await formatCaniaoEvent(cainiao);
+                                console.log(formatedEventCainiao, formatedEventCorreios);
+                                if (formatedEventCainiao.trackedAt.getTime() > formatedEventCorreios.trackedAt.getTime()) {
+                                    return formatedEventCainiao;
+                                }
+                            }
+                            return formatedEventCorreios;
+                        }
                     }
                 }
             }
