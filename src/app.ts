@@ -5,6 +5,7 @@ import express from "express";
 import cheerioModule from 'cheerio';
 import { json } from 'node:stream/consumers';
 import googleTranslateApi from '@vitalets/google-translate-api';
+import { filter } from 'domutils';
 
 
 const caniaoCode = /^LP\d{14}$/gmi
@@ -200,10 +201,11 @@ module Rastreamento {
     }
     async function formatCaniaoEvent(obj: CainiaoApi.Datum): Promise<RastrearResponse> {
         const response = new RastrearResponse();
+
         response.status = await translate(obj.statusDesc);
         response.locale = upperCaseFirstLetterWord(getLocaleCainiao(obj) || "");
         response.observation = await translate(obj.latestTrackingInfo?.desc || "");
-        response.trackedAt = newDateFromTimeZone(obj.latestTrackingInfo?.time || "", parseInt(obj.latestTrackingInfo?.timeZone || "0"));
+        response.trackedAt = newDateFromTimeZone(obj.latestTrackingInfo?.time || "", getTimezone(obj));
         response.isFinished = obj.statusDesc.toLowerCase()?.trim() == "delivered";
         return response;
     }
@@ -242,7 +244,6 @@ module Rastreamento {
                             if (cainiao) {
 
                                 const formatedEventCainiao = await formatCaniaoEvent(cainiao);
-                                console.log(formatedEventCainiao, formatedEventCorreios);
                                 if (formatedEventCainiao.trackedAt.getTime() > formatedEventCorreios.trackedAt.getTime()) {
                                     return formatedEventCainiao;
                                 }
@@ -292,6 +293,25 @@ function newDateFromTimeZone(time: string | Date, timeZone: number): Date {
     return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()));
 }
 
+function getTimezone(data: CainiaoApi.Datum): number {
+    const str = data?.latestTrackingInfo?.timeZone;
+    if (str !== undefined) {
+        let timeZone = parseInt(str) || 0;
+        if (timeZone === 0) {
+            const list = data.section2?.detailList;
+            if (list && list.length > 0) {
+                const filter = list.filter(x => (parseInt(x.timeZone) || 0) !== 0);
+                if (filter && filter.length > 0) {
+                    console.log(filter);
+
+                    timeZone = parseInt(filter[0].timeZone);
+                }
+            }
+        }
+        return timeZone;
+    }
+    return 0;
+}
 function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
 
     if (event?.tipo?.toUpperCase() == "LDI") {
@@ -356,7 +376,7 @@ function getLocale(unidade: CorreiosAPI.Unidade): string {
 }
 function getLocaleCainiao(data: CainiaoApi.Datum): string {
     try {
-        const filter = data?.section2?.detailList?.filter(detail => detail.status === "DEPART_FROM_ORIGINAL_COUNTRY");
+        const filter = data?.section2?.detailList?.filter(detail => detail.status === "ARRIVED_AT_DEST_COUNTRY");
         if (filter?.length > 0) {
             return data.destCountry || "";
         }
