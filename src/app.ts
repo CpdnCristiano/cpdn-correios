@@ -216,8 +216,9 @@ module Rastreamento {
         if (caniaoCode.test(code)) {
             const cainiao = await caniaoApi(code);
             if (cainiao) {
-                if (cainiao.section2.mailNo !== undefined && correiosCode.test(cainiao.section2.mailNo)) {
-                    const correios = await correiosApi(code, "U");
+
+                if (cainiao.section2.mailNo != undefined && correiosCode.test(cainiao.section2.mailNo)) {
+                    const correios = await correiosApi(cainiao.section2.mailNo, "U");
                     if (correios) {
                         return formatEvent(correios.objeto[0].evento[0]);
                     }
