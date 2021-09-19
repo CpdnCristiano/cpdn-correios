@@ -233,12 +233,12 @@ module Rastreamento {
                         return formatEvent(track);
                     }
                 }
-            } else {
-                const cainiao = await caniaoApi(code);
-                if (cainiao) {
-                    return formatCaniaoEvent(cainiao);
-                }
             }
+            const cainiao = await caniaoApi(code);
+            if (cainiao) {
+                return formatCaniaoEvent(cainiao);
+            }
+
         }
 
 
@@ -288,8 +288,7 @@ async function translate(text: string, to: string = 'pt', from = "en"): Promise<
     }
     try {
 
-        var res = await googleTranslateApi(text.trim().toLowerCase(), { to: to, from: from });
-        console.log();
+        var res = await googleTranslateApi(text.trim(), { to: to, from: from });
         return `${res.text} (${text})`.trim();
     } catch (error) {
         console.log(error);
