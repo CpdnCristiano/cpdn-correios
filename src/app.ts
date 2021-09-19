@@ -2,7 +2,13 @@ import axios from 'axios';
 import { parse } from 'date-fns';
 import { env } from 'process';
 import express from "express";
+import cheerioModule from 'cheerio';
+import { json } from 'node:stream/consumers';
+import googleTranslateApi from '@vitalets/google-translate-api';
 
+
+const caniaoCode = /^LP\d{14}$/gmi
+const correiosCode = /[a-z]{2}\d{9}[a-z]{2}/gmi;
 declare module CorreiosAPI {
     export interface Recebedor {
         nome: string;
@@ -65,6 +71,60 @@ declare module CorreiosAPI {
     }
 
 }
+declare module CainiaoApi {
+
+    export interface LatestTrackingInfo {
+        desc: string;
+        status: string;
+        time: string;
+        timeZone: string;
+    }
+
+    export interface Detail {
+        desc: string;
+        status: string;
+        time: string;
+        timeZone: string;
+    }
+
+    export interface Section {
+        companyName: string;
+        companyPhone: string;
+        countryName: string;
+        detailList: Detail[];
+        url: string;
+        mailNo: string;
+    }
+
+    export interface Datum {
+        allowRetry: boolean;
+        bizType: string;
+        cachedTime: string;
+        destCountry: string;
+        destCpList: any[];
+        hasRefreshBtn: boolean;
+        latestTrackingInfo: LatestTrackingInfo;
+        mailNo: string;
+        originCountry: string;
+        originCpList: any[];
+        section1: Section;
+        section2: Section;
+        shippingTime: number;
+        showEstimateTime: boolean;
+        status: string;
+        statusDesc: string;
+        success: boolean;
+        syncQuery: boolean;
+    }
+
+    export interface CainiaoResult {
+        data: Datum[];
+        success: boolean;
+        timeSeconds: number;
+    }
+
+}
+
 module Rastreamento {
 
 
@@ -105,52 +165,114 @@ module Rastreamento {
             var result = await axios.post(`http://webservice.correios.com.br/service/rest/rastro/rastroMobile`, body, { headers });
             return result.data as CorreiosAPI.CorreiosAPITrackingResponse;
         } catch (error) {
+            console.log(error);
         }
         return undefined;
     }
+    export async function caniaoApi(code: string): Promise<undefined | CainiaoApi.Datum> {
+        //JSON.parse($("#waybill_list_val_box").val()).data[0]
+        try {
+            const data = await axios.get(`https://global.cainiao.com/detail.htm?mailNoList=${code}`);
+            const html = cheerioModule.load(data.data);
+            const json = JSON.parse(html("#waybill_list_val_box").val()) as CainiaoApi.CainiaoResult;
+            if (json.data.length > 0 && json.data[0].success) {
+                const obj = json.data[0];
+                return obj;
+            }
+        } catch (error) {
+            console.log(error);
+        }
 
+        return undefined;
+    }
     function formatEvent(event: CorreiosAPI.Evento): RastrearResponse {
         const response = new RastrearResponse();
         fixCaseLocal(event.destino?.[0]);
         response.status = event.descricao;
         response.locale = getLocale(event.unidade);
         response.observation = getObservation(event);
-        response.trackedAt = parse(event.data + ' ' + event.hora, 'dd/MM/yyyy HH:mm', new Date());
+        response.trackedAt = newDateFromTimeZone(parse(event.data + ' ' + event.hora, 'dd/MM/yyyy HH:mm', new Date()), -3);
         response.isFinished = isFinished(event);
         response.pickupAddress = pickupAddressFormatted(event);
         response.pickupAddresscoordinates = pickupAddresscoordinates(event);
         response.receiver = event?.recebedor?.nome;
         return response;
     }
+    async function formatCaniaoEvent(obj: CainiaoApi.Datum): Promise<RastrearResponse> {
+        const response = new RastrearResponse();
+        response.status = await translate(obj.statusDesc);
+        response.locale = upperCaseFirstLetterWord(await translate(obj.originCountry));
+        response.observation = await translate(obj.latestTrackingInfo?.desc || "");
+        response.trackedAt = newDateFromTimeZone(obj.latestTrackingInfo?.time || "", parseInt(obj.latestTrackingInfo?.timeZone || "0"));
+        response.isFinished = obj.statusDesc.toLowerCase()?.trim() == "delivered";
+        return response;
+    }
 
 
     export async function find(code: string,): Promise<undefined | RastrearResponse> {
-        const data = await correiosApi(code, "U");
-        if (data) {
-            if (data.objeto && data.objeto.length > 0 && data.objeto[0].evento) {
-                const track = data.objeto[0].evento[0];
-                if (track) {
-                    return formatEvent(track);
+        if (code == null || code == "") {
+            return undefined;
+        }
+        if (caniaoCode.test(code)) {
+            const cainiao = await caniaoApi(code);
+            if (cainiao) {
+                if (cainiao.section2.mailNo !== undefined && correiosCode.test(cainiao.section2.mailNo)) {
+                    const correios = await correiosApi(code, "U");
+                    if (correios) {
+                        return formatEvent(correios.objeto[0].evento[0]);
+                    }
+                }
+                return formatCaniaoEvent(cainiao);
+            }
+        } else {
+            const correios = await correiosApi(code, "U");
+            if (correios) {
+                if (correios.objeto && correios.objeto.length > 0 && correios.objeto[0].evento) {
+                    const track = correios.objeto[0].evento[0];
+                    if (track) {
+                        return formatEvent(track);
+                    }
+                }
+            } else {
+                const cainiao = await caniaoApi(code);
+                if (cainiao) {
+                    return formatCaniaoEvent(cainiao);
                 }
             }
         }
+
+
     }
     export async function findHistory(code: string): Promise<RastrearResponse[]> {
-        const data = await correiosApi(code, "T");
         const result: RastrearResponse[] = [];
-        if (data) {
-            if (data.objeto && data.objeto.length > 0 && data.objeto[0].evento) {
-                data.objeto[0].evento.forEach(event => {
-                    result.push(formatEvent(event));
-                });
+        if (code != null || code != "") {
+            if (caniaoCode.test(code)) {
+                return [];
+            } else {
+                const data = await correiosApi(code, "T");
+                if (data) {
+                    if (data.objeto && data.objeto.length > 0 && data.objeto[0].evento) {
+                        data.objeto[0].evento.forEach(event => {
+                            result.push(formatEvent(event));
+                        });
+                    }
+                }
             }
         }
         return result.reverse();
     }
+
 }
 
 
+
 export default Rastreamento;
+
+function newDateFromTimeZone(time: string | Date, timeZone: number): Date {
+    const date = typeof time === "string" ? new Date(time) : time;
+    date.setHours(date.getHours() - timeZone);
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()));
+}
 
 function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
 
@@ -158,6 +280,22 @@ function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
         return formatAddress(event.unidade.endereco);
     }
     return undefined;
+}
+
+async function translate(text: string, to: string = 'pt', from = "en"): Promise<string> {
+    if (text == null || text == "") {
+        return "";
+    }
+    try {
+
+        var res = await googleTranslateApi(text.trim().toLowerCase(), { to: to, from: from });
+        console.log();
+        return `${res.text} (${text})`.trim();
+    } catch (error) {
+        console.log(error);
+    }
+    return text;
+
 }
 
 function pickupAddresscoordinates(event: CorreiosAPI.Evento): Object | undefined {
@@ -272,16 +410,21 @@ app.get('/:code', (req, res) => {
             res.end();
         });
 });
-app.get('/api/v1/:code', (req, res) => {
+app.get('/api/v1/:code', async (req, res) => {
     const code = req.params.code.trim();
-    Rastreamento.find(code)
-        .then((result) => {
+    try {
+        const result = await Rastreamento.find(code);
+        if (result) {
             res.json(result);
-        }).catch((error) => {
-            res.status(404).json({ status: "error" });
-        }).finally(() => {
-            res.end();
-        });
+        } else {
+            res.status(404).json({ status: "not found" });
+        }
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ status: "error" });
+    }
+
+
 });
 app.get('/api/v1/:code/complete', (req, res) => {
     const code = req.params.code.trim();

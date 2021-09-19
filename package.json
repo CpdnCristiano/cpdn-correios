@@ -12,7 +12,10 @@
   "author": "cpdncristiano",
   "license": "MIT",
   "dependencies": {
+    "@types/cheerio": "^0.22.30",
+    "@vitalets/google-translate-api": "^7.0.0",
     "axios": "^0.21.4",
+    "cheerio": "*",
     "date-fns": "^2.23.0",
     "express": "^4.17.1"
   },
