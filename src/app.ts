@@ -201,7 +201,7 @@ module Rastreamento {
     async function formatCaniaoEvent(obj: CainiaoApi.Datum): Promise<RastrearResponse> {
         const response = new RastrearResponse();
         response.status = await translate(obj.statusDesc);
-        response.locale = upperCaseFirstLetterWord(await translate(obj.originCountry));
+        response.locale = upperCaseFirstLetterWord(getLocaleCainiao(obj) || "");
         response.observation = await translate(obj.latestTrackingInfo?.desc || "");
         response.trackedAt = newDateFromTimeZone(obj.latestTrackingInfo?.time || "", parseInt(obj.latestTrackingInfo?.timeZone || "0"));
         response.isFinished = obj.statusDesc.toLowerCase()?.trim() == "delivered";
@@ -216,8 +216,7 @@ module Rastreamento {
         if (caniaoCode.test(code)) {
             const cainiao = await caniaoApi(code);
             if (cainiao) {
-
-                if (cainiao.section2.mailNo != undefined && correiosCode.test(cainiao.section2.mailNo)) {
+                if (cainiao.section2.mailNo === undefined && correiosCode.test(cainiao.section2.mailNo)) {
                     const correios = await correiosApi(cainiao.section2.mailNo, "U");
                     if (correios) {
                         return formatEvent(correios.objeto[0].evento[0]);
@@ -283,12 +282,11 @@ function pickupAddressFormatted(event: CorreiosAPI.Evento): string | undefined {
     return undefined;
 }
 
-async function translate(text: string, to: string = 'pt', from = "en"): Promise<string> {
+async function translate(text: string, to: string = 'pt', from = "auto"): Promise<string> {
     if (text == null || text == "") {
         return "";
     }
     try {
-
         var res = await googleTranslateApi(text.trim(), { to: to, from: from });
         return `${res.text} (${text})`.trim();
     } catch (error) {
@@ -338,6 +336,19 @@ function getLocale(unidade: CorreiosAPI.Unidade): string {
     }
     return upperCaseFirstLetterWord(unidade?.local || "");
 }
+function getLocaleCainiao(data: CainiaoApi.Datum): string {
+    try {
+        const filter = data?.section2?.detailList?.filter(detail => detail.status === "DEPART_FROM_ORIGINAL_COUNTRY");
+        if (filter?.length > 0) {
+            return data.destCountry || "";
+        }
+        return data?.originCountry || "";
+    } catch (error) {
+
+    }
+    return "";
+}
+
 function getObservation(event: CorreiosAPI.Evento): string {
     if (event.detalhe) {
         return event.detalhe;
