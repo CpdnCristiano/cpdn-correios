@@ -10,9 +10,9 @@ import { jadlogApi } from './jadlog/jadlog';
 import { newDateFromTimeZone } from './utils/date';
 import { upperCaseFirstLetterWord } from './utils/string';
 
-const caniaoCode = /^LP\d{14}$/gmi
-const correiosCode = /[a-z]{2}\d{9}[a-z]{2}/gmi;
-const jadlogCode = /\d{14}/gmi;
+const caniaoCode = /^[a-z]{2}\d{14}$/i
+const correiosCode = /[a-z]{2}\d{9}[a-z]{2}/i;
+const jadlogCode = /^\d{14}$/i;
 declare module CorreiosAPI {
     export interface Recebedor {
         nome: string;
@@ -212,7 +212,10 @@ module Rastreamento {
         if (code == null || code == "") {
             return undefined;
         }
+
         if (caniaoCode.test(code)) {
+            console.log("cainiao");
+
             const cainiao = await caniaoApi(code);
             if (cainiao) {
                 const formatedEventCainiao = formatCaniaoEvent(cainiao);
