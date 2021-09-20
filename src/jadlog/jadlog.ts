@@ -32,7 +32,7 @@ function jadlogParse(tracking: JadLogEvent): ApiResponse {
     const response = new ApiResponse();
     response.locale = getLocale(tracking?.local);
     response.isFinished = tracking.status?.trim().toUpperCase() === 'ENTREGUE';
-    response.status = upperCaseFirstLetter(tracking.status);
+    response.status = upperCaseFirstLetter(tracking.status)?.trim();
     response.trackedAt = newDateFromTimeZone(parse(removeMutipleSpace(tracking.date?.trim()), "dd/MM/yyyy HH:mm", new Date()), -3);
     response.observation = getObservation(tracking);
     return response;
