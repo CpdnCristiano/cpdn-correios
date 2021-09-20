@@ -15,7 +15,7 @@ module StringUtils {
         return str.length > 1 ? str[0].toUpperCase() + str.substring(1) : str.toUpperCase();
     }
     export function removeMutipleSpace(str: string) {
-        return str.replace(/\s+/g, ' ');
+        return str?.replace(/\s+/g, ' ');
     }
 }
 export = StringUtils;
