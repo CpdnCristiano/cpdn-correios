@@ -3,13 +3,16 @@ import { parse } from 'date-fns';
 import { env } from 'process';
 import express from "express";
 import cheerioModule from 'cheerio';
-import { json } from 'node:stream/consumers';
 import googleTranslateApi from '@vitalets/google-translate-api';
-import { filter } from 'domutils';
-
+import { getAllCountries, getCountry, getTimezonesForCountry } from 'countries-and-timezones';
+import ApiResponse from './models/api_reponse';
+import { jadlogApi } from './jadlog/jadlog';
+import { newDateFromTimeZone } from './utils/date';
+import { upperCaseFirstLetterWord } from './utils/string';
 
 const caniaoCode = /^LP\d{14}$/gmi
 const correiosCode = /[a-z]{2}\d{9}[a-z]{2}/gmi;
+const jadlogCode = /\d{14}/gmi;
 declare module CorreiosAPI {
     export interface Recebedor {
         nome: string;
@@ -129,21 +132,8 @@ declare module CainiaoApi {
 module Rastreamento {
 
 
-    class RastrearResponse {
-        status!: string;
-        locale!: string;
-        observation!: string;
-        isFinished: boolean = false;
-        trackedAt!: Date;
-        pickupAddress?: string;
-        pickupAddresscoordinates?: LanLng;
-        receiver?: string;
 
-    }
-    interface LanLng {
-        latitude?: number | string;
-        longitude?: number | string;
-    }
+
     export async function correiosApi(code: string, type = "T"): Promise<undefined | CorreiosAPI.CorreiosAPITrackingResponse> {
         if (code == null || code == "" || code.length != 13) {
             return undefined;
@@ -186,21 +176,28 @@ module Rastreamento {
 
         return undefined;
     }
-    function formatEvent(event: CorreiosAPI.Evento): RastrearResponse {
-        const response = new RastrearResponse();
+    function formatEvent(event: CorreiosAPI.Evento): ApiResponse {
+        const response = new ApiResponse();
         fixCaseLocal(event.destino?.[0]);
         response.status = event.descricao;
         response.locale = getLocale(event.unidade);
         response.observation = getObservation(event);
-        response.trackedAt = newDateFromTimeZone(parse(event.data + ' ' + event.hora, 'dd/MM/yyyy HH:mm', new Date()), -3);
+        //pode ser que em objetos internacionais o timezone seja diferente de -3, pensar em um fix
+        const timezone = getTimeZoneFromCountry(getLocale(event.unidade)) || -3;
+
+        if (event.criacao) {
+            response.trackedAt = newDateFromTimeZone(parse(event.criacao, 'ddMMyyyyHHmmss', new Date()), timezone);
+        } else {
+            response.trackedAt = newDateFromTimeZone(parse(event.data + ' ' + event.hora, 'dd/MM/yyyy HH:mm', new Date()), timezone);
+        }
         response.isFinished = isFinished(event);
         response.pickupAddress = pickupAddressFormatted(event);
         response.pickupAddresscoordinates = pickupAddresscoordinates(event);
         response.receiver = event?.recebedor?.nome;
         return response;
     }
-    async function formatCaniaoEvent(obj: CainiaoApi.Datum): Promise<RastrearResponse> {
-        const response = new RastrearResponse();
+    async function formatCaniaoEvent(obj: CainiaoApi.Datum): Promise<ApiResponse> {
+        const response = new ApiResponse();
 
         response.status = await translate(obj.statusDesc);
         response.locale = upperCaseFirstLetterWord(getLocaleCainiao(obj) || "");
@@ -211,7 +208,7 @@ module Rastreamento {
     }
 
 
-    export async function find(code: string,): Promise<undefined | RastrearResponse> {
+    export async function find(code: string,): Promise<undefined | ApiResponse> {
         if (code == null || code == "") {
             return undefined;
         }
@@ -223,6 +220,7 @@ module Rastreamento {
                     const correios = await correiosApi(cainiao.section2.mailNo, "U");
                     if (correios) {
                         const formatedEventCorreios = formatEvent(correios.objeto[0].evento[0]);
+
                         if (formatedEventCorreios.isFinished || (await formatedEventCainiao).trackedAt.getTime() <= formatedEventCorreios.trackedAt.getTime()) {
                             return formatedEventCorreios;
                         }
@@ -230,8 +228,9 @@ module Rastreamento {
                 }
                 return formatedEventCainiao;
             }
-        } else {
+        } else if (correiosCode.test(code)) {
             const correios = await correiosApi(code, "U");
+
             if (correios) {
                 if (correios.objeto && correios.objeto.length > 0 && correios.objeto[0].evento) {
                     const track = correios.objeto[0].evento[0];
@@ -242,7 +241,6 @@ module Rastreamento {
                         } else {
                             const cainiao = await caniaoApi(code);
                             if (cainiao) {
-
                                 const formatedEventCainiao = await formatCaniaoEvent(cainiao);
                                 if (formatedEventCainiao.trackedAt.getTime() > formatedEventCorreios.trackedAt.getTime()) {
                                     return formatedEventCainiao;
@@ -258,12 +256,17 @@ module Rastreamento {
                 return formatCaniaoEvent(cainiao);
             }
 
+        } else if (jadlogCode.test(code)) {
+            const jadlog = await jadlogApi(code);
+            if (jadlog) {
+                return jadlog;
+            }
         }
 
 
     }
-    export async function findHistory(code: string): Promise<RastrearResponse[]> {
-        const result: RastrearResponse[] = [];
+    export async function findHistory(code: string): Promise<ApiResponse[]> {
+        const result: ApiResponse[] = [];
         if (code != null || code != "") {
             if (caniaoCode.test(code)) {
                 return [];
@@ -283,15 +286,10 @@ module Rastreamento {
 
 }
 
-
-
 export default Rastreamento;
 
-function newDateFromTimeZone(time: string | Date, timeZone: number): Date {
-    const date = typeof time === "string" ? new Date(time) : time;
-    date.setHours(date.getHours() - timeZone);
-    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()));
-}
+
+
 
 function getTimezone(data: CainiaoApi.Datum): number {
     const str = data?.latestTrackingInfo?.timeZone;
@@ -302,8 +300,6 @@ function getTimezone(data: CainiaoApi.Datum): number {
             if (list && list.length > 0) {
                 const filter = list.filter(x => (parseInt(x.timeZone) || 0) !== 0);
                 if (filter && filter.length > 0) {
-                    console.log(filter);
-
                     timeZone = parseInt(filter[0].timeZone);
                 }
             }
@@ -411,12 +407,10 @@ function fixCaseLocal(unidade: CorreiosAPI.Unidade): void {
     let locale = unidade?.local;
     if (locale) {
         const words = locale.split(' ');
-        const silga = words[0];
+        const sigla = words[0];
         unidade.local = upperCaseFirstLetterWord(locale);
-        unidade.local = unidade.local.replace(new RegExp(silga, 'gi'), silga);
-
+        unidade.local = unidade.local.replace(new RegExp(sigla, 'gi'), sigla);
     }
-
 }
 
 function isFinished(event: CorreiosAPI.Evento): boolean {
@@ -430,20 +424,17 @@ function isFinished(event: CorreiosAPI.Evento): boolean {
     const eventStatus = ["01", "12", "23", "50", "51", "52", "43", "67", "68", "70", "71", "72", "73", "74", "75", "76", "80"];
     return (eventType.includes(event.tipo) && eventStatus.includes(event.status)) || (event.tipo == "FC" && event.status == "11");
 }
-function upperCaseFirstLetterWord(str: string) {
-    if (str === "") {
-        return str;
+
+function getTimeZoneFromCountry(country: string): number | undefined {
+
+    const countrys = getAllCountries();
+    for (const key in countrys) {
+        const element = countrys[key as keyof typeof countrys];
+        if (element.name.toLowerCase() == country.toLowerCase()) {
+            console.log(element);
+        }
     }
-    var array = str.split(" ");
-    array = array.filter((element) => element != undefined && element != '');
-    for (let i = 0; i < array.length; i++) {
-        array[i] = upperCaseFirstLetter(array[i]);
-    }
-    return array.join(" ");
-}
-function upperCaseFirstLetter(str: string) {
-    str = str.toLowerCase();
-    return str.length > 1 ? str[0].toUpperCase() + str.substring(1) : str.toUpperCase();
+    return undefined;
 }
 
 const app = express();

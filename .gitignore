@@ -143,3 +143,6 @@ dist
 
 .env
 build
+*.js
+*.html
+*.xml
