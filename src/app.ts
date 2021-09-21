@@ -157,6 +157,16 @@ module Rastreamento {
             return result.data as CorreiosAPI.CorreiosAPITrackingResponse;
         } catch (error) {
             console.log(error);
+            try {
+                var result = await axios.post(`https://correios.contrateumdev.com.br/api/rastreio`,
+                    { code, type: 'LS' },
+                );
+                if (result.data.message === undefined) {
+                    return result.data as CorreiosAPI.CorreiosAPITrackingResponse;
+                }
+            } catch (error) {
+                console.error(error);
+            }
         }
         return undefined;
     }
