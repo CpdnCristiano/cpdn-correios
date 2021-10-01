@@ -231,7 +231,8 @@ module Rastreamento {
                 const formatedEventCainiao = formatCaniaoEvent(cainiao);
                 if (cainiao.section2.mailNo !== undefined && correiosCode.test(cainiao.section2.mailNo)) {
                     const correios = await correiosApi(cainiao.section2.mailNo, "U");
-                    if (correios) {
+                    if (correios && correios.objeto[0]?.evento?.[0]) {
+
                         const formatedEventCorreios = formatEvent(correios.objeto[0].evento[0]);
 
                         if (formatedEventCorreios.isFinished || (await formatedEventCainiao).trackedAt.getTime() <= formatedEventCorreios.trackedAt.getTime()) {

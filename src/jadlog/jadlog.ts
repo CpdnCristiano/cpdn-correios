@@ -60,7 +60,6 @@ async function jadLogFind(code: string): Promise<JadLogEvent[]> {
                         destino: destino
                     });
                 }
-
             }
         });
     } catch (error) {

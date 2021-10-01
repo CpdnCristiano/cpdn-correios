@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node build/app.js",
     "build": "rm -rf build && tsc --build tsconfig.json",
-    "postinstall": "npm run build"
+    "postinstall": "npm run build",
+    "dev": "npm run build && npm start"
   },
   "author": "cpdncristiano",
   "license": "MIT",
