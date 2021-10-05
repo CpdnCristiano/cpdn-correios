@@ -398,24 +398,27 @@ function getLocaleCainiao(data: CainiaoApi.Datum): string {
 }
 
 function getObservation(event: CorreiosAPI.Evento): string {
+    let observation = "";
     if (event.detalhe) {
-        return event.detalhe;
-    }
-    if (event?.destino == undefined) {
-        return event.descricao;
-    }
-    if (event?.unidade?.tipounidade == undefined) {
-        return `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
-    }
-    if (event?.unidade?.tipounidade.toLowerCase() == "país" || event?.unidade?.tipounidade.toLowerCase() == "pais") {
+        observation = event.detalhe;
+    } else if (event?.destino == undefined) {
+        observation = event.descricao;
+    } else if (event?.unidade?.tipounidade == undefined) {
+        observation = `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
+    } else if (event?.unidade?.tipounidade.toLowerCase() == "país" || event?.unidade?.tipounidade.toLowerCase() == "pais") {
         if (event?.destino[0].local) {
-            return `${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
+            observation = `${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
+        } else {
+            observation = `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
         }
-        return `${getLocale(event.unidade)} para ${getLocale(event.destino[0])}`;
-
+    } else {
+        observation = `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
     }
+    if (event?.recebedor?.comentario && event.recebedor.comentario?.trim() != "") {
+        observation += ` - ${event.recebedor.comentario}`;
+    }
+    return observation;
     //TODO: melhorar algoritmo
-    return `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
 }
 function fixCaseLocal(unidade: CorreiosAPI.Unidade): void {
     let locale = unidade?.local;
