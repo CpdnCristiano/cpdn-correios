@@ -203,7 +203,7 @@ module Rastreamento {
         response.isFinished = isFinished(event);
         response.pickupAddress = pickupAddressFormatted(event);
         response.pickupAddresscoordinates = pickupAddresscoordinates(event);
-        response.receiver = event?.recebedor?.nome?.trim() == '' ? undefined : event?.recebedor?.nome?.trim();
+        response.receiver = event?.recebedor?.nome?.trim() == '' && event?.recebedor?.nome?.trim() == '?' ? undefined : event?.recebedor?.nome?.trim();
         return response;
     }
     async function formatCaniaoEvent(obj: CainiaoApi.Datum): Promise<ApiResponse> {
@@ -416,7 +416,7 @@ function getObservation(event: CorreiosAPI.Evento): string {
     } else {
         observation = `${event?.unidade.tipounidade} - ${getLocale(event.unidade)} para ${event?.destino[0].local} - ${getLocale(event.destino[0])}`;
     }
-    if (event?.recebedor?.comentario && event.recebedor.comentario?.trim() != "") {
+    if (event?.recebedor?.comentario && event.recebedor.comentario?.trim() != "" && event.recebedor.comentario?.trim() != "?") {
         observation += ` - ${event.recebedor.comentario}`;
     }
     return observation.trim();
