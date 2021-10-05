@@ -203,7 +203,7 @@ module Rastreamento {
         response.isFinished = isFinished(event);
         response.pickupAddress = pickupAddressFormatted(event);
         response.pickupAddresscoordinates = pickupAddresscoordinates(event);
-        response.receiver = event?.recebedor?.nome?.trim();
+        response.receiver = event?.recebedor?.nome?.trim() == '' ? undefined : event?.recebedor?.nome?.trim();
         return response;
     }
     async function formatCaniaoEvent(obj: CainiaoApi.Datum): Promise<ApiResponse> {
