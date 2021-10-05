@@ -203,7 +203,7 @@ module Rastreamento {
         response.isFinished = isFinished(event);
         response.pickupAddress = pickupAddressFormatted(event);
         response.pickupAddresscoordinates = pickupAddresscoordinates(event);
-        response.receiver = event?.recebedor?.nome;
+        response.receiver = event?.recebedor?.nome?.trim();
         return response;
     }
     async function formatCaniaoEvent(obj: CainiaoApi.Datum): Promise<ApiResponse> {
@@ -398,6 +398,8 @@ function getLocaleCainiao(data: CainiaoApi.Datum): string {
 }
 
 function getObservation(event: CorreiosAPI.Evento): string {
+    //TODO: melhorar algoritmo
+
     let observation = "";
     if (event.detalhe) {
         observation = event.detalhe;
@@ -417,8 +419,7 @@ function getObservation(event: CorreiosAPI.Evento): string {
     if (event?.recebedor?.comentario && event.recebedor.comentario?.trim() != "") {
         observation += ` - ${event.recebedor.comentario}`;
     }
-    return observation;
-    //TODO: melhorar algoritmo
+    return observation.trim();
 }
 function fixCaseLocal(unidade: CorreiosAPI.Unidade): void {
     let locale = unidade?.local;
