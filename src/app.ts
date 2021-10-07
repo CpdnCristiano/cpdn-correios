@@ -10,7 +10,7 @@ import { jadlogApi } from './jadlog/jadlog';
 import { newDateFromTimeZone } from './utils/date';
 import { upperCaseFirstLetterWord } from './utils/string';
 
-const caniaoCode = /^[a-z]{2}\d{14}$/i
+const caniaoCode = /^(LP\d{14})|(SY\d{11})$/i
 const correiosCode = /[a-z]{2}\d{9}[a-z]{2}/i;
 const jadlogCode = /^\d{14}$/i;
 declare module CorreiosAPI {

@@ -49,10 +49,11 @@ async function jadLogFind(code: string): Promise<JadLogEvent[]> {
             const data = html(el).find('td');
             if (data.length > 0) {
                 const date = data.eq(0).text();
-                const local = data.eq(1).text();
-                const status = data.eq(2).text();
-                const destino = data.eq(3).text();
+
                 if (!date.trim()?.toLowerCase()?.includes('não existem dados referentes a remessa.')) {
+                    const local = data.eq(1).text();
+                    const status = data.eq(2).text();
+                    const destino = data.eq(3).text();
                     tracking.push({
                         date: date,
                         local: local,
