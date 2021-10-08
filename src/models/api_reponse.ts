@@ -8,6 +8,7 @@ class ApiResponse {
     pickupAddress?: string;
     pickupAddresscoordinates?: LanLng;
     receiver?: string;
+    newCode?: string;
 
 }
 interface LanLng {
