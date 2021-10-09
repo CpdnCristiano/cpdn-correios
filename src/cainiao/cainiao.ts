@@ -26,7 +26,7 @@ async function formatEvent(obj: Datum): Promise<ApiResponse> {
     //  console.log(obj);
 
     const response = new ApiResponse();
-    response.newCode = obj.section2.mailNo;
+    response.newCode = getNewCode(obj);
     response.status = await getStatus(obj.statusDesc);;
     response.locale = upperCaseFirstLetterWord(getLocaleCainiao(obj) || "");
     response.observation = await getObservation(obj.latestTrackingInfo);
@@ -43,6 +43,7 @@ async function cainiaoFind(code: string): Promise<undefined | Datum> {
         const json = JSON.parse(html("#waybill_list_val_box").val()) as CainiaoResult;
         if (json.data.length > 0 && json.data[0].success) {
             const obj = json.data[0];
+
             return obj;
         }
     } catch (error) {
@@ -122,4 +123,16 @@ async function getStatus(status: string): Promise<string> {
         default:
             return await translate(status);
     }
+}
+function getNewCode(data: Datum): string | undefined {
+    const newCode = data.section2.mailNo;
+    if (newCode) {
+        return newCode;
+    }
+    if (data.mailNo.toUpperCase().includes("New Tracking Number:".toUpperCase())) {
+        const newCode = data.mailNo.split("New Tracking Number:")[1].trim().replace(/\)/g, "");
+        return newCode?.toUpperCase();
+    }
+    return undefined;
+
 }
