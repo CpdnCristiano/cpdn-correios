@@ -11,6 +11,8 @@ module Cainiao {
         try {
             const response = await cainiaoFind(code);
             if (response) {
+                console.log(JSON.stringify(response));
+
                 //  response.section2.detailList.forEach(a => console.log(a));
                 return formatEvent(response)
             }
@@ -30,7 +32,7 @@ async function formatEvent(obj: Datum): Promise<ApiResponse> {
     response.status = await getStatus(obj.statusDesc);;
     response.locale = upperCaseFirstLetterWord(getLocaleCainiao(obj) || "");
     response.observation = await getObservation(obj.latestTrackingInfo);
-    response.trackedAt = newDateFromTimeZone(obj.latestTrackingInfo?.time || "", getTimezone(obj));
+    response.trackedAt = newDateFromTimeZone(obj.latestTrackingInfo?.time || obj.cachedTime || "", getTimezone(obj));
     response.isFinished = obj.statusDesc.toLowerCase()?.trim() == "delivered";
     return response;
 }
@@ -43,7 +45,6 @@ async function cainiaoFind(code: string): Promise<undefined | Datum> {
         const json = JSON.parse(html("#waybill_list_val_box").val()) as CainiaoResult;
         if (json.data.length > 0 && json.data[0].success) {
             const obj = json.data[0];
-
             return obj;
         }
     } catch (error) {
@@ -80,12 +81,14 @@ function getTimezone(data: Datum): number {
         }
         return timeZone;
     }
-    return 0;
+    return 8;
 }
 
 
 async function getObservation(detail: Detail): Promise<string> {
-
+    if (detail == undefined) {
+        return "";
+    }
     switch (detail.status?.trim()?.toLowerCase().trim()) {
         case "DEPART_FROM_ORIGINAL_COUNTRY".toLowerCase().trim():
             return "Saída do país de origem";

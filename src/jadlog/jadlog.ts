@@ -97,10 +97,26 @@ function getObservation(tracking: JadLogEvent): string {
 
 function getLocale(locale: string): string {
     if (locale && locale.trim() !== "") {
+        if (locale.trim().toUpperCase() === 'TECA JAD SAO') {
+            return 'Terminal de Cargas - São Paulo';
+        }
+
         const words = locale.trim().split(' ');
         const sigla = words[0];
+        let siglaDes = "";
+        switch (sigla.toUpperCase().trim()) {
+            case 'CO':
+                siglaDes = 'Centro de operações';
+                break;
+            case 'FL':
+                siglaDes = 'Filial';
+                break;
+            default:
+                siglaDes = sigla;
+        }
+
         locale = upperCaseFirstLetterWord(locale);
-        locale = locale.replace(new RegExp(sigla, 'gi'), sigla);
+        locale = locale.replace(new RegExp(sigla, 'gi'), siglaDes);
         locale = locale.replace(new RegExp("JAD", 'gi'), "JAD");
         return removeMutipleSpace(locale?.trim());
     }
