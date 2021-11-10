@@ -25,6 +25,9 @@ module Correios {
         }
         return undefined;
     }
+    export async function correiosFind(code: string, type = "T"): Promise<undefined | CorreiosAPITrackingResponse> {
+        return correiosFind(code, type);
+    }
 }
 
 export = Correios;

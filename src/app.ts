@@ -3,7 +3,7 @@ import express from "express";
 import ApiResponse from './models/api_reponse';
 import { jadlogApi } from './jadlog/jadlog';
 import { cainiaoApi } from './cainiao/cainiao';
-import { correiosApi } from './correios/correios';
+import { correiosApi, correiosFind } from './correios/correios';
 
 const caniaoCode = /^(LP\d{14})|(SY\d{11})$/i
 const correiosCode = /[a-z]{2}\d{9}[a-z]{2}/i;
@@ -117,7 +117,7 @@ app.get('/api/v1/:code/complete', (req, res) => {
 });
 app.get('/api/correios/:code', (req, res) => {
     const code = req.params.code.trim();
-    correiosApi(code)
+    correiosFind(code)
         .then((result) => {
             res.json(result);
         }).catch((error) => {
